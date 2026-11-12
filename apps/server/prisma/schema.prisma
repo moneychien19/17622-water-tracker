@@ -1,0 +1,112 @@
+// Data model: specs/001-shared-plant-watering/data-model.md
+// Enum-like fields are Strings (SQLite); allowed values are enforced by the Zod schemas in
+// @water/shared and documented inline.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String          @id @default(cuid())
+  /// lowercase-normalized, valid email, <= 254 chars
+  email        String          @unique
+  /// 1-50 chars, trimmed
+  displayName  String
+  /// argon2id; never returned by the API
+  passwordHash String
+  /// valid IANA zone
+  timeZone     String
+  createdAt    DateTime        @default(now())
+  sessions     Session[]
+  memberships  Membership[]
+  waterings    WateringEvent[]
+  invitations  Invitation[]    @relation("InvitedBy")
+}
+
+model Session {
+  /// SHA-256 hash of a 32-byte random token
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+
+  @@index([userId])
+}
+
+model Group {
+  id          String       @id @default(cuid())
+  /// 1-60 chars
+  name        String
+  isPersonal  Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  plants      Plant[]
+  invitations Invitation[]
+}
+
+model Membership {
+  groupId  String
+  userId   String
+  /// owner | caretaker
+  role     String
+  joinedAt DateTime @default(now())
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id          String   @id @default(cuid())
+  groupId     String
+  /// lowercase-normalized
+  email       String
+  invitedById String
+  /// pending | accepted | declined | revoked | expired
+  status      String   @default("pending")
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedBy   User     @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([groupId, email, status])
+  @@index([email, status])
+}
+
+model Plant {
+  id           String          @id @default(cuid())
+  groupId      String
+  /// 1-60 chars
+  name         String
+  /// 1-365
+  intervalDays Int
+  /// inside | outside
+  location     String
+  /// <= 1000 chars
+  notes        String?
+  version      Int             @default(1)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  group        Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  waterings    WateringEvent[]
+
+  @@index([groupId])
+}
+
+model WateringEvent {
+  id          String    @id @default(cuid())
+  plantId     String
+  wateredById String
+  wateredAt   DateTime
+  undoneAt    DateTime?
+  plant       Plant     @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  wateredBy   User      @relation(fields: [wateredById], references: [id], onDelete: Cascade)
+
+  @@index([plantId, wateredAt])
+}
