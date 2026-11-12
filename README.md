@@ -41,6 +41,21 @@ npm run dev                                     # API on :4000, web on http://lo
 
 Vite proxies `/api` and `/socket.io` to the API, so open http://localhost:5173.
 
+### Local test account
+
+The local dev database (`apps/server/prisma/dev.db`) already has one account, created
+while checking the setup:
+
+| Field        | Value                     |
+| ------------ | ------------------------- |
+| Email        | `smoke-15486@example.com` |
+| Password     | `password123`             |
+| Display name | Smoke                     |
+
+It owns one plant, **Basil** (outside, watered every day). The account exists only in this
+local SQLite file, which is gitignored, so a fresh clone or a new database won't have it.
+Register a new account from the sign-in page if you'd rather start clean.
+
 The API uses port **4000** rather than 3000 because 3000 is often taken by editor or
 port-forwarding tools.
 
